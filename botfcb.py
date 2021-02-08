@@ -2,7 +2,6 @@ import discord
 from discord import DMChannel
 from discord.ext import commands
 from discord.utils import get
-import utils
 import time
 import asyncio
 import os
