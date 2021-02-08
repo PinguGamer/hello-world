@@ -334,4 +334,4 @@ async def teste(ctx):
     for roles in ctx.author.roles:
         print(roles)
 
-bot.run("Nzc5MzM3MjcxMDU1NzQ1MDI1.X7fEZA.i9FW7SIaq3is-RVfzJX8ie0pV0U")
+bot.run("Nzc5MzM3MjcxMDU1NzQ1MDI1.X7fEZA.3SLth7ufSMICvS9mo5zBtNhF_Ys")
