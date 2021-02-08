@@ -93,6 +93,8 @@ async def on_command_error(ctx, error):
         await ctx.send(
             'Não foi possível encontrar este membro :/'
         )
+    else:
+      print(error)
 
 @bot.command()
 async def virarApostador(ctx):
