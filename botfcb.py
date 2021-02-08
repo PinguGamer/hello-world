@@ -334,4 +334,19 @@ async def teste(ctx):
     for roles in ctx.author.roles:
         print(roles)
 
+
+  @commands.is_owner()
+  @bot.command()
+  async def atualizar(ctx):
+      await ctx.message.delete()
+      os.chdir('..')
+      os.system('sudo rm -R Zapper-Bot')
+      os.system(
+          'git clone https://github.com/Zapper0/Zapper-bot.git'
+      )
+      os.chdir('Zapper-Bot')
+      os.system('clear')
+      os.system('python3 botfcb.py')
+      quit()
+
 bot.run("Nzc5MzM3MjcxMDU1NzQ1MDI1.X7fEZA.3SLth7ufSMICvS9mo5zBtNhF_Ys")
