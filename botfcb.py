@@ -1,16 +1,11 @@
 import discord
 from discord import DMChannel
 from discord.ext import commands
-from discord.utils import get
-import time
-import asyncio
 import os
 from unicodedata import normalize
 from datetime import datetime
 import pyrebase
 import random
-from datetime import timedelta
-import sys
 
 config = {
   "apiKey": "AIzaSyDSNiMyZF_fdprDfs-HE3QI_eHAnnRTdFc",
@@ -93,8 +88,6 @@ async def on_command_error(ctx, error):
         await ctx.send(
             'Não foi possível encontrar este membro :/'
         )
-    else:
-      print(error)
 
 @bot.command()
 async def virarApostador(ctx):
@@ -112,16 +105,6 @@ async def limpaFirebase(ctx):
     db.child("corsacoins").child(f"{ctx.guild}").set("")
     print(hora_atual())
     
-
-@bot.command(aliases=['iniciadb', 'startdb'])
-@commands.has_role("zapper")
-async def iniciaFirebase(ctx):
-    for member in ctx.guild.members:
-        if member.bot:
-            continue
-        else:
-            db.child("corsacoins").child(f"{ctx.guild}").child(f"{member.id}").set("")
-    await ctx.send("Servidor configurado no banco de dados Firebase.")
 
 @bot.command(aliases=['ajuda', 'help'])
 async def h(ctx):
@@ -148,6 +131,8 @@ async def h(ctx):
 
 +  roubar/hack_corsacoins (quantidade, usuário) [cargo de apostador]: tem uma chance de 1 em 3 de sucesso, mas também pode ficar do jeito que está ou tu perder. Quando tu ganha, a quantidade de moedas inserida sai do usuário de destino e vai pra ti, mas quando tu perde, as moedas que tu tentou roubar vão pra vítima e são retiradas de ti. Obs.: não é possível roubar de si mesmo, nem roubar mais do que alguém tem ou mais do que tu tem, pois, se perder, vai ter que pagar o valor que tentou roubar.
 
++ adivinhar: o bot escolhe um número aleatório que tu tem que adivinhar, e a cada chute te diz se está mais alto ou mais baixo que o número escolhido! (se acertar, ganha 1% das suas corsacoins =))
+
 +  help/h/ajuda: exibe esta mensagem, contendo os comandos para o bot =)
 
 ```""")
@@ -170,6 +155,52 @@ async def rank(ctx):
             embed.add_field(name= usuario.display_name, value= moedas, inline=False)
             cont += 1
     await ctx.send(embed=embed)
+
+@bot.command(aliases=['shop'])
+@commands.has_role("Apostador")
+async def loja(ctx):
+    await ctx.send(f'O zap ta trabalhando na loja ainda, mas em breve vai ter, relaxa <@{ctx.author.id}>')
+
+@bot.command()
+@commands.has_role("Apostador")
+async def adivinhar(ctx):
+    moedas_atuais = db.child("corsacoins").child(f"{ctx.guild}").child(f'{ctx.author.id}').child('moedas').get().val()
+    num2 = random.randint(20, 40)
+    num2 *= 10
+    num2 += 100
+    num = random.randint(0, num2)
+    chute = num + 1
+    cont = 1
+    acertou = False
+    ganhar = moedas_atuais / 10
+    ganhar = int(ganhar)
+    autor = ctx.author
+    await ctx.send(f'Tente adivinhar o número em que eu estou pensando, é entre 0 e {num2}, pra ganhar {ganhar} corsacoins =)')
+    
+    
+    while not acertou:
+        chute = await bot.wait_for('message', timeout=30)
+        if chute.content.startswith(','):
+            try:
+                chute.content = int(chute.content)
+            except:
+                await ctx.send('Só números inteiros são escolhidos, então só pode chutar números inteiros!\nUse o comando novamente com os parâmetros certos =)')
+                acertou = True 
+            if chute.author != autor:
+                await ctx.send(f'Oops <@{chute.author.id}>, tu não tá participando do jogo :v')
+            elif int(chute.content) == num:            
+                await ctx.send(f'Parabéns, você acertou e ganhou {ganhar} corsacoins!')
+                db.child("corsacoins").child(f"{ctx.guild}").child(f'{ctx.author.id}').child('moedas').set(moedas_atuais + ganhar)
+                acertou = True
+            elif int(chute.content) > num:
+                await ctx.send(f'Oops, seu chute foi mais alto que o número. Ainda restam {7 - cont} tentativas')
+                cont += 1
+            elif int(chute.content) < num:
+                await ctx.send(f'Oops, seu chute foi mais baixo que o número. Ainda restam {7 - cont} tentativas')
+                cont += 1
+            if cont > 7:
+                await ctx.send(f'Oops, as suas tentativas acabaram :pensive:\nO número era {num}')
+                acertou = True
 
 @bot.command(aliases=['lb', 'loot'])
 @commands.has_role("Apostador")
@@ -201,7 +232,7 @@ async def hack_corsacoins(ctx, valor, *, user: discord.Member):
     moedasladrao = db.child("corsacoins").child(f"{ctx.guild}").child(f'{ladrao.id}').child('moedas').get().val()
     moedasvitima = db.child("corsacoins").child(f"{ctx.guild}").child(f'{vitima.id}').child('moedas').get().val()
     possibilidades = ['perder', 'ganhar', 'igualar']
-    decisao = possibilidades[random.randint(0,2)]
+    decisao = random.choice(possibilidades)
     if moedasladrao == None or moedasladrao == 0:
         await ctx.send(f"Pô <@{ladrao.id}>, pra querer roubar precisa pelo menos ter algo né? Vai criar vergonha e ganhar dinheiro com \".lb\"")
     elif moedasvitima == None or moedasvitima == 0:
@@ -240,7 +271,8 @@ async def apostar(ctx, valor):
             f' no server {ctx.guild}, no canal {ctx.channel}'
         )
     decisao = ['soma', 'igual', 'subtrai']
-    valores = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
+    valoresmais = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0]
+    valoresmenos = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
     moedas_atuais = db.child("corsacoins").child(f"{ctx.guild}").child(f'{ctx.author.id}').child('moedas').get().val()
     if valor == "tudo":
         valor = moedas_atuais
@@ -254,9 +286,9 @@ async def apostar(ctx, valor):
         except:
             await ctx.send('Passe os parâmetros adequadamente. Para essa função só números inteiros são aceitos')
             return
-        decidido = decisao[random.randint(0, 2)]
+        decidido = random.choice(decisao)
         if decidido == 'soma':
-            multiplicado = float(valor) * valores[random.randint(0, 19)]
+            multiplicado = float(valor) * random.choice(valoresmais)
             if multiplicado < 1:
                 await ctx.send(f'Não teve sorte nem azar, <@{ctx.author.id}>, ficou com a mesma quantidade de moedas :)\nContinua com ' + str(moedas_atuais) + ' corsacoins')
             else:
@@ -264,7 +296,7 @@ async def apostar(ctx, valor):
                 db.child("corsacoins").child(f"{ctx.guild}").child(f'{ctx.author.id}').child('moedas').set(ganhou)
                 await ctx.send(f'Parabéns, <@{ctx.author.id}>! Você ganhou ' + str(int(multiplicado)) + ' corsacoins!\nFicando com ' + str(ganhou) + ' corsacoins')
         elif decidido == 'subtrai':
-            multiplicado = float(valor) * valores[random.randint(0, 9)]
+            multiplicado = float(valor) * random.choice(valoresmenos)
             if multiplicado < 1:
                 await ctx.send(f'Não teve sorte nem azar, <@{ctx.author.id}>, ficou com a mesma quantidade de moedas :)\nContinua com ' + str(moedas_atuais) + ' corsacoins')
             else:
@@ -273,6 +305,12 @@ async def apostar(ctx, valor):
                 await ctx.send(f'Oops <@{ctx.author.id}>, você perdeu ' + str(int(multiplicado)) + ' corsacoins...\nFicando com ' + str(ganhou) + ' corsacoins')
         elif decidido == 'igual':
             await ctx.send(f'Não teve sorte nem azar, <@{ctx.author.id}>, ficou com a mesma quantidade de moedas :)\nContinua com ' + str(moedas_atuais) + ' corsacoins')
+
+
+@bot.command()
+async def d20(ctx):
+    valor = random.randint(1, 20)
+    await ctx.send("Você tirou " + str(valor) + " no dado...")
 
 @bot.command(aliases=['dar'])
 @commands.has_role("Apostador")
@@ -329,25 +367,21 @@ async def sobre(ctx, user: discord.Member):
 @bot.command(aliases=["t"])
 @commands.is_owner()
 async def teste(ctx):
-    role = discord.utils.get(ctx.guild.roles, name='Apostador')
-    print(role)
-    print(dir(ctx.author))
-    for roles in ctx.author.roles:
-        print(roles)
-
+    await ctx.send('modificação')
 
 @commands.is_owner()
 @bot.command()
-async def atualizar(ctx):
+async def atualizar(ctx, commit):
     await ctx.message.delete()
     os.chdir('..')
-    os.system('sudo rm -R Zapper-Bot')
-    os.system(
-        'git clone https://github.com/Zapper0/Zapper-bot.git'
-    )
-    os.chdir('Zapper-Bot')
-    os.system('clear')
-    os.system('python3 botfcb.py')
+    os.system('heroku login')
+    os.system('g')
+    os.system('git init')
+    os.system('git add .')
+    os.system('heroku git:remote -a zapper-bot')
+    os.system('git commit -am ' + commit)
+    os.system('git push heroku master')
     quit()
+
 
 bot.run("Nzc5MzM3MjcxMDU1NzQ1MDI1.X7fEZA.3SLth7ufSMICvS9mo5zBtNhF_Ys")
