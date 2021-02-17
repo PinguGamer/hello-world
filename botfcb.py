@@ -2,7 +2,7 @@ import discord
 from discord import DMChannel
 from discord.ext import commands
 import os
-from unicodedata import normalize
+from unicodedata import name, normalize
 from datetime import datetime
 import pyrebase
 import random
@@ -156,12 +156,62 @@ async def rank(ctx):
             cont += 1
     await ctx.send(embed=embed)
 
+itens = [{
+        'nome': 'Imunidade a roubos',
+        'descrição': 'Dá imunidade contra roubos ao comprador por 2h',
+        'valor': 2000
+    },
+    {
+        'nome': 'Aumento de ganhos',
+        'descrição': 'Aumenta em 50% as chances de ganhar uma quantidade maior de corsacoins com o comando `.apostar`',
+        'valor': 5000
+    },
+    {
+        'nome': 'Maiores chances de roubar',
+        'descrição': 'Aumenta em 50% as chances de roubar as moedas de alguém com o comando `.roubar`',
+        'valor': 7000
+    }
+    ]
+
 @bot.command(aliases=['shop'])
 @commands.has_role("Apostador")
 async def loja(ctx):
-    await ctx.send(f'O zap ta trabalhando na loja ainda, mas em breve vai ter, relaxa <@{ctx.author.id}>')
+    print('Loja')
+    itens = [{
+        'nome': '1: Imunidade a roubos',
+        'descrição': 'Dá imunidade contra roubos ao comprador por 2h',
+        'valor': 2000
+    },
+    {
+        'nome': '2: Aumento de ganhos',
+        'descrição': 'Aumenta em 50% as chances de ganhar uma quantidade maior de corsacoins com o comando `.apostar`',
+        'valor': 5000
+    },
+    {
+        'nome': '3: Maiores chances de roubar',
+        'descrição': 'Aumenta em 50% as chances de roubar as moedas de alguém com o comando `.roubar`',
+        'valor': 7000
+    }
+    ]
+    embed = discord.Embed(title=f"Loja de vantagens a partir das corsacoins", colour=discord.Colour(0xFE2E2E))
+    for item in itens:
+        embed.add_field(name=item['nome'] + ': ', value=item['descrição'], inline=False)
+        embed.add_field(name='Valor: ', value=str(item['valor']) + ' corsacoins\n\n', inline=True)
+    await ctx.send(embed= embed)
+@bot.command(aliases=['buy'])
+@commands.has_role("Apostador")
+async def comprar(ctx, item):
+    item = int(item)
+    item -= 1
+    moedas_atuais = db.child("corsacoins").child(f"{ctx.guild}").child(f'{ctx.author}').child('moedas').get().val()
+    if item > len(itens):
+        await ctx.send(f'Oops <@{ctx.author.id}>, não tem esse item na loja ainda')
+    elif itens[item].get('valor') > moedas_atuais:
+        await ctx.send(f'Oops <@{ctx.author.id}, tu não tem moedas suficientes pra comprar isso aí.')
+    else:
+        db.child("corsacoins").child(f"{ctx.guild}").child(f'{ctx.author}').child('moedas').set(moedas_atuais - itens[item].get('valor'))
 
-@bot.command()
+@bot.command(aliases=['ad'])
 @commands.has_role("Apostador")
 async def adivinhar(ctx):
     moedas_atuais = db.child("corsacoins").child(f"{ctx.guild}").child(f'{ctx.author.id}').child('moedas').get().val()
@@ -175,32 +225,35 @@ async def adivinhar(ctx):
     ganhar = moedas_atuais / 10
     ganhar = int(ganhar)
     autor = ctx.author
-    await ctx.send(f'Tente adivinhar o número em que eu estou pensando, é entre 0 e {num2}, pra ganhar {ganhar} corsacoins =)')
+    await ctx.send(f'Tente adivinhar o número em que eu estou pensando, <@{ctx.author.id}>, é entre 0 e {num2}, pra ganhar {ganhar} corsacoins.\n_não esquece de colocar \",\" antes do número_ =)')
     
     
     while not acertou:
-        chute = await bot.wait_for('message', timeout=30)
-        if chute.content.startswith(','):
+        chute = await bot.wait_for('message', timeout=60)
+        if chute.content.startswith(',') and chute.author == autor:
+            chute.content = chute.content.replace(',', '')
             try:
                 chute.content = int(chute.content)
+
+                
+                if int(chute.content) == num:            
+                    await ctx.send(f'Parabéns <@{ctx.author.id}>, você acertou e ganhou {ganhar} corsacoins!')
+                    db.child("corsacoins").child(f"{ctx.guild}").child(f'{ctx.author.id}').child('moedas').set(moedas_atuais + ganhar)
+                    acertou = True
+                elif cont >= 7:
+                    await ctx.send(f'Oops <@{ctx.author.id}>, as suas tentativas acabaram :pensive:\nO número era {num}')
+                    acertou = True 
+                elif int(chute.content) > num:
+                    await ctx.send(f'Oops <@{ctx.author.id}>, seu chute foi mais alto que o número. Ainda restam {7 - cont} tentativas')
+                    cont += 1
+                elif int(chute.content) < num:
+                    await ctx.send(f'Oops <@{ctx.author.id}>, seu chute foi mais baixo que o número. Ainda restam {7 - cont} tentativas')
+                    cont += 1
+                             
             except:
-                await ctx.send('Só números inteiros são escolhidos, então só pode chutar números inteiros!\nUse o comando novamente com os parâmetros certos =)')
-                acertou = True 
-            if chute.author != autor:
-                await ctx.send(f'Oops <@{chute.author.id}>, tu não tá participando do jogo :v')
-            elif int(chute.content) == num:            
-                await ctx.send(f'Parabéns, você acertou e ganhou {ganhar} corsacoins!')
-                db.child("corsacoins").child(f"{ctx.guild}").child(f'{ctx.author.id}').child('moedas').set(moedas_atuais + ganhar)
-                acertou = True
-            elif int(chute.content) > num:
-                await ctx.send(f'Oops, seu chute foi mais alto que o número. Ainda restam {7 - cont} tentativas')
-                cont += 1
-            elif int(chute.content) < num:
-                await ctx.send(f'Oops, seu chute foi mais baixo que o número. Ainda restam {7 - cont} tentativas')
-                cont += 1
-            if cont > 7:
-                await ctx.send(f'Oops, as suas tentativas acabaram :pensive:\nO número era {num}')
-                acertou = True
+                await ctx.send(f'Só números inteiros são escolhidos, <@{ctx.author.id}>, então só pode chutar números inteiros!\nUse o comando novamente com os parâmetros certos =)')
+            
+            
 
 @bot.command(aliases=['lb', 'loot'])
 @commands.has_role("Apostador")
@@ -364,10 +417,12 @@ async def sobre(ctx, user: discord.Member):
 
     await ctx.send(content="Aqui <@" + str(ctx.author.id) + ">, as informações sobre " + user.name, embed=embed)
 
-@bot.command(aliases=["t"])
+@bot.command(aliases=["t", 'roubar_do_edu'])
 @commands.is_owner()
-async def teste(ctx):
-    await ctx.send('modificação')
+async def teste(ctx, val):
+    await ctx.send(itens)
+    await ctx.send(itens['nome'])
+
 
 @commands.is_owner()
 @bot.command()
