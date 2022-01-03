@@ -54,17 +54,17 @@ async def on_message(message):
             f'{hora_atual()}: {message.author.name} disse pudim' +
             f' no server {message.guild}, no canal {message.channel}'
         )
-        await ctx.send(
+        msg = await ctx.send(
             'Epa, tu falou em pudim???'
         )
         url = "http://pudim.com.br"
         embed = discord.Embed(
             title='Clique aqui para ser redirecionado',
-            description='Olha seu pudim ae !',
+            description=f'Olha seu pudim ae !',
             colour=discord.Colour(0x349cff),
             url=url,
         )
-        await ctx.send(
+        await msg.edit(
             content=f'Olha que legal, <@{message.author.id}>',
             embed=embed
         )
@@ -275,7 +275,7 @@ async def lootBox(ctx):
             f' no server {ctx.guild}, no canal {ctx.channel}'
         )
     else:
-        await ctx.send("Oops, calma aí, ainda falta um tempo para você resgatar a próxima lootbox.")
+        await ctx.send(f"Oops, calma aí, ainda falta {int(hora_destino) - int(agora)} para você resgatar a próxima lootbox.")
 
 @bot.command(aliases=['roubar'])
 @commands.has_role("Apostador")
